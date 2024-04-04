@@ -40,54 +40,82 @@ public:
     SimpleVector() noexcept = default;
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
-    explicit SimpleVector(size_t size) {
-        ArrayPtr<Type> ptr_new(size);
-        size_=size;
-        capacity_=size;
-        for (size_t i=0;i<size_;++i){
-           ptr_new[i]=Type();    
-        }
-        ptr_.swap(ptr_new);
-   
+    explicit SimpleVector(size_t size):
+        ptr_(size),
+        size_(size),
+        capacity_(size)
+    {
+        fill(ptr_.Get(),ptr_.Get()+size_,Type());
     }
     
   
     // Создаёт вектор из size элементов, инициализированных значением value
-    SimpleVector(size_t size, const Type& value) {
-        
-        size_=size;
-        capacity_=size;
-        ArrayPtr<Type> ptr_new(size);
-        for (size_t i=0;i<size_;++i){
-            ptr_new[i]=value;    
-          }
-        ptr_.swap(ptr_new);
-       
+    SimpleVector(size_t size, const Type& value):
+        ptr_(size),
+        size_(size),
+        capacity_(size)
+    {   
+        fill(ptr_.Get(),ptr_.Get()+size_,value);
     }
 
     // Создаёт вектор из std::initializer_list
-    SimpleVector(std::initializer_list<Type> init) {
-        size_t size=init.size();
-        ArrayPtr<Type> ptr_new(size);
-        size_=size;
-        capacity_=size;
-        size_t i=0;
-        for (Type value:init){
-            ptr_new[i]=value;
-            ++i;
-        }
-        ptr_.swap(ptr_new);
+    SimpleVector(std::initializer_list<Type> init) :
+        ptr_(init.size()),
+        size_(init.size()),
+        capacity_(init.size())
+    {
+        copy(init.begin(),init.end(),ptr_.Get());        
+    }
+    
+    SimpleVector(ReserveProxyObj proxy):
+        ptr_(proxy.GetCapacity()),
+        size_(0),
+        capacity_(proxy.GetCapacity())
+    {
        
+      
+    }
+    
+    SimpleVector(const SimpleVector& other):
+        ptr_(other.GetCapacity()),
+        size_(other.GetSize()),
+        capacity_(other.GetCapacity())
+    {
+        copy(other.ptr_.Get(),other.ptr_.Get()+other.GetSize(),ptr_.Get());
+       
+    }
+    
+    SimpleVector(SimpleVector&& other):
+        ptr_(other.GetCapacity()),
+        size_(other.GetSize()),
+        capacity_(other.GetCapacity())
+    {
+        for (size_t i=0;i<size_;++i){
+           ptr_[i]=move(other[i]);    
+        }
+        other.Clear();
         
     }
     
-    SimpleVector(ReserveProxyObj proxy){
-       capacity_=proxy.GetCapacity();
-       ArrayPtr<Type> ptr_new(capacity_);
-       size_=0;
-       ptr_.swap(ptr_new);
-      
+    SimpleVector& operator=(const SimpleVector& rhs) {
+        size_t new_size=rhs.GetSize();
+        if (capacity_>=new_size){
+           copy(rhs.ptr_.Get(),rhs.ptr_.Get()+new_size,ptr_.Get());
+           size_=new_size;
+        }
+        else{
+            SimpleVector temp_vector(rhs);
+            ptr_.swap(temp_vector.ptr_);
+            size_=new_size;
+            capacity_=new_size;
+            
+            
+        }
+        return *this;
     }
+    
+    
+ 
 
     // Возвращает количество элементов в массиве
     size_t GetSize() const noexcept {
@@ -121,7 +149,7 @@ public:
     // Выбрасывает исключение std::out_of_range, если index >= size
     Type& At(size_t index) {
         if (index>=size_){
-            throw out_of_range("");
+            throw out_of_range("out_of_range! index >= size");
         }
         return ptr_[index];
     }
@@ -177,9 +205,8 @@ public:
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator end() noexcept {
-        Iterator iter=Iterator(ptr_.Get());
-        advance(iter,size_);
-        return iter;
+        return Iterator(ptr_.Get())+size_;
+        
     }
 
     // Возвращает константный итератор на начало массива
@@ -191,9 +218,8 @@ public:
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator end() const noexcept {
-        ConstIterator iter=ConstIterator(ptr_.Get());
-        advance(iter,size_);
-        return iter;
+        return ConstIterator(ptr_.Get())+size_;
+       
     }
 
     // Возвращает константный итератор на начало массива
@@ -205,58 +231,13 @@ public:
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cend() const noexcept {
-        ConstIterator iter=ConstIterator(ptr_.Get());
-        advance(iter,size_);
-        return iter;
+        return ConstIterator(ptr_.Get())+size_;
+        
     }
     
-    SimpleVector(const SimpleVector& other) {
-       size_=other.GetSize();
-       capacity_=other.GetCapacity();
-       ArrayPtr<Type> ptr_new(capacity_);
-       
-        for (size_t i=0;i<size_;++i){
-           ptr_new[i]=other[i];    
-        }
-        ptr_.swap(ptr_new);
-       
-    }
     
-    SimpleVector(SimpleVector&& other) {
-       size_=other.GetSize();
-       capacity_=other.GetCapacity();
-       ArrayPtr<Type> ptr_new(capacity_);
-       
-        for (size_t i=0;i<size_;++i){
-           ptr_new[i]=move(other[i]);    
-        }
-        other.Clear();
-        ptr_.swap(ptr_new);
-       
-    }
 
-    SimpleVector& operator=(const SimpleVector& rhs) {
-        // Напишите тело конструктора самостоятельно
-        size_t new_size=rhs.GetSize();
-        if (capacity_>=new_size){
-           for (size_t i=0;i<new_size;++i){
-               ptr_[i]=rhs[i];
-           }
-           size_=new_size;
-        }
-        else{
-            ArrayPtr<Type> ptr_new(new_size);
-            for (size_t i=0;i<new_size;++i){
-                ptr_new[i]=rhs[i];    
-            }
-            ptr_.swap(ptr_new);
-            size_=new_size;
-            capacity_=new_size;
-            
-            
-        }
-        return *this;
-    }
+    
 
     // Добавляет элемент в конец вектора
     // При нехватке места увеличивает вдвое вместимость вектора
@@ -299,11 +280,15 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
+        
+        if (distance(ConstIterator(ptr_.Get()),pos)<0){
+            throw out_of_range("out_of_range! position is before begin!");
+        }
         size_t num=distance(ConstIterator(ptr_.Get()),pos);
+        
         if (capacity_==size_){
             size_t new_capacity=max(capacity_*2,static_cast<size_t>(1));
             ArrayPtr<Type> ptr_new(new_capacity);
-            size_t num=distance(ConstIterator(ptr_.Get()),pos);
             for (size_t i=0;i<num;++i){
                 ptr_new[i]=ptr_[i];    
             }
@@ -315,28 +300,33 @@ public:
             capacity_=new_capacity;            
         }
         else {
-        Iterator first=Iterator(ptr_.Get());
-        advance(first,num);
-        Iterator last=Iterator(ptr_.Get());
-        advance(last,size_);
-        Iterator dest=last;
-        ++dest;
-        copy_backward(first,last,dest);
-        ptr_[num]=value;
+            Iterator first=Iterator(ptr_.Get());
+            advance(first,num);
+            Iterator last=Iterator(ptr_.Get());
+            advance(last,size_);
+            Iterator dest=last;
+            ++dest;
+            copy_backward(first,last,dest);
+            ptr_[num]=value;
         }
         ++size_;
-        Iterator iter=Iterator(ptr_.Get());
-        advance(iter,num);
-        return iter;
+        
+        return Iterator(ptr_.Get())+num;
         
     }
     
     Iterator Insert(ConstIterator pos, Type&& value) {
+        if (distance(ConstIterator(ptr_.Get()),pos)<0){
+            throw out_of_range("out_of_range! position is before begin!");
+        }
         size_t num=distance(ConstIterator(ptr_.Get()),pos);
         if (capacity_==size_){
             size_t new_capacity=max(capacity_*2,static_cast<size_t>(1));
+            // когда я попробовал заменить статик_каст на 1u выдал такую ошибку и я вернул обратно:
+          // /exposed/submission/simple_vector.h:318:36: error: no matching function for call to ‘max(size_t, unsigned int)’
+//  318 |             size_t new_capacity=max(capacity_*2,1u);
             ArrayPtr<Type> ptr_new(new_capacity);
-            size_t num=distance(ConstIterator(ptr_.Get()),pos);
+            
             for (size_t i=0;i<num;++i){
                 ptr_new[i]=move(ptr_[i]);    
             }
@@ -348,27 +338,18 @@ public:
             capacity_=new_capacity;            
         }
         else {
-        /*Iterator first=Iterator(ptr_.Get());
-        advance(first,num);
-        Iterator last=Iterator(ptr_.Get());
-        advance(last,size_);
-        Iterator dest=last;
-        ++dest;
-        copy_backward(make_move_iterator(first),make_move_iterator(last),make_move_iterator(dest));
-        ptr_[num]=move(value);
-        */
-         size_t num=distance(ConstIterator(ptr_.Get()),pos);
-           
-            
-            for (size_t i=num;i<size_;++i){
-                ptr_[i+1]=move(ptr_[i]);    
-            }           
+            Iterator first=Iterator(ptr_.Get());
+            advance(first,num);
+            Iterator last=Iterator(ptr_.Get());
+            advance(last,size_);
+            Iterator dest=last;
+            ++dest;
+            move_backward(first,last,dest);
+                  
             ptr_[num]=move(value);
         }
         ++size_;
-        Iterator iter=Iterator(ptr_.Get());
-        advance(iter,num);
-        return iter;
+        return Iterator(ptr_.Get())+num;
         
     }
 
@@ -394,14 +375,9 @@ public:
     // Обменивает значение с другим вектором
     void swap(SimpleVector& other) noexcept {
         ptr_.swap(other.ptr_);
-         
-         size_t tsz=size_;
-         size_=other.size_;
-         other.size_=tsz;
-          
-          size_t tc=capacity_;
-          capacity_=other.capacity_;
-          other.capacity_=tc;
+        std::swap(size_,other.size_); 
+        std::swap(capacity_,other.capacity_); 
+        
     }
     void Reserve(size_t new_capacity){
         if (new_capacity>capacity_){
@@ -428,7 +404,7 @@ inline bool operator==(const SimpleVector<Type>& lhs, const SimpleVector<Type>& 
 
 template <typename Type>
 inline bool operator!=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return (!equal(lhs.begin(),lhs.end(),rhs.begin(),rhs.end()));
+    return !(lhs==rhs);
 }
 
 template <typename Type>
@@ -438,15 +414,15 @@ inline bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& r
 
 template <typename Type>
 inline bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-   return (lexicographical_compare(lhs.begin(),lhs.end(),rhs.begin(),rhs.end())||equal(lhs.begin(),lhs.end(),rhs.begin(),rhs.end()));
+   return (lhs<rhs||lhs==rhs);
 }
 
 template <typename Type>
 inline bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return  lexicographical_compare(rhs.begin(),rhs.end(),lhs.begin(),lhs.end());
+    return  !(lhs<=rhs);
 }
 
 template <typename Type>
 inline bool operator>=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return  (!lexicographical_compare(lhs.begin(),lhs.end(),rhs.begin(),rhs.end()));
+    return !(lhs<rhs);  
 } 
