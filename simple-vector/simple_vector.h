@@ -281,12 +281,18 @@ public:
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
         
-        if (distance(ConstIterator(ptr_.Get()),pos)<0){
-            throw out_of_range("out_of_range! position is before begin!");
-        }
-        size_t num=distance(ConstIterator(ptr_.Get()),pos);
+        // совсем не уверен что правильно вас понял. Два раза считать distance - да, выгляит это заметно криво
+        // хотя конечно незначительно, ведь O(1) все равно.
+        // Ничего другого не придумал, как использовать промежуточной int_num
+        // Не знаю как по-другому, кроме того, что бы вообще отказаться от индексов и двигать итераторы
+        // а чем assert лучше  if throw
         
-        if (capacity_==size_){
+        int num_int=distance(ConstIterator(ptr_.Get()),pos);
+        assert(num_int >= 0);
+        size_t num=num_int;
+        assert(num<=size_);
+        
+        if (capacity_ == size_){
             size_t new_capacity=max(capacity_*2,static_cast<size_t>(1));
             ArrayPtr<Type> ptr_new(new_capacity);
             for (size_t i=0;i<num;++i){
@@ -316,11 +322,11 @@ public:
     }
     
     Iterator Insert(ConstIterator pos, Type&& value) {
-        if (distance(ConstIterator(ptr_.Get()),pos)<0){
-            throw out_of_range("out_of_range! position is before begin!");
-        }
-        size_t num=distance(ConstIterator(ptr_.Get()),pos);
-        if (capacity_==size_){
+        int num_int=distance(ConstIterator(ptr_.Get()),pos);
+        assert(num_int >= 0 );
+        size_t num=num_int;
+        assert(num<=size_);
+        if (capacity_ == size_){
             size_t new_capacity=max(capacity_*2,static_cast<size_t>(1));
             // когда я попробовал заменить статик_каст на 1u выдал такую ошибку и я вернул обратно:
           // /exposed/submission/simple_vector.h:318:36: error: no matching function for call to ‘max(size_t, unsigned int)’
@@ -414,12 +420,12 @@ inline bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& r
 
 template <typename Type>
 inline bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-   return (lhs<rhs||lhs==rhs);
+   return !(rhs <  lhs);
 }
 
 template <typename Type>
 inline bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return  !(lhs<=rhs);
+    return  (rhs<lhs);
 }
 
 template <typename Type>
