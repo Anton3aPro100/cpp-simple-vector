@@ -1,6 +1,3 @@
-// вставьте сюда ваш код для класса ArrayPtr
-// внесиnте в него изменения, 
-// которые позволят реализовать move-семантику
 
 #include <cassert>
 #include <cstdlib>
@@ -61,15 +58,13 @@ public:
     // Возвращает ссылку на элемент массива с индексом index
     Type& operator[](size_t index) noexcept {
        
-        Type& r = *(raw_ptr_+index);
-        return r;
+       
+       return  *(raw_ptr_+index);
     }
 
     // Возвращает константную ссылку на элемент массива с индексом index
     const Type& operator[](size_t index) const noexcept {
-        const Type& r = *(raw_ptr_+index);
-        return r;
-       
+        return  *(raw_ptr_+index);
     }
 
     // Возвращает true, если указатель ненулевой, и false в противном случае
